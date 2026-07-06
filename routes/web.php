@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -83,6 +84,24 @@ Route::get('/infinite-scroll', function () {
     return Inertia::render('InfiniteScrollExample');
 })->name('infinite-scroll');
 
-Route::get('/star-rating', function () {
-    return Inertia::render('StarRating');
-})->name('star-rating');
+Route::get('/quiz3', function () {
+    return Inertia::render('Quiz3');
+})->name('quiz3');
+
+// routes/web.php
+use App\Models\Product;
+Route::get('/product', function () {
+    $products = Product::all();
+    return Inertia::render('ProductList', compact('products') );
+})->name('product');
+
+// routes/web.php
+Route::get('/product-others', function () {
+    return Inertia::render('ProductOthers');
+})->name('product-others');
+
+// Route Web ตามที่โจทย์กำหนด
+Route::get('/quiz4', function () {
+    return Inertia::render('Quiz4'); 
+})->name('quiz4');
+

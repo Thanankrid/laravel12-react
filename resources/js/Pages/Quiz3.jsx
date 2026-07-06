@@ -2,7 +2,7 @@ import BootstrapLayout from "@/Layouts/BootstrapLayout";
 import { Head } from "@inertiajs/react";
 import { useState } from "react";
 
-export default function StarRating() {
+export default function Quiz3() {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   
@@ -81,7 +81,7 @@ export default function StarRating() {
                 style={{ 
                   color: rating > 0 || hover > 0 ? '#198754' : '#6c757d',
                   minHeight: '35px',
-                  transition: 'color 0.3s'
+                  transition: 'color 0P3s'
                 }}
               >
                 {feedbackText[hover || rating]}
