@@ -1,4 +1,4 @@
-import BootstrapLayout from "@/layouts/BootstrapLayout";
+import BootstrapLayout from "@/Layouts/BootstrapLayout";
 import React, { useState, useEffect } from "react";
 
 const ProductOthers = () => {

@@ -1,5 +1,5 @@
 //resources/js/Pages/Counter.jsx
-import BootstrapLayout from "@/layouts/BootstrapLayout";
+import BootstrapLayout from "@/Layouts/BootstrapLayout";
 import { Head } from "@inertiajs/react";
 import { useState } from "react";
 //import { useState } from "react";
