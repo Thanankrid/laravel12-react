@@ -20,7 +20,7 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          cd /var/www/thanankridchn.csbootstrap.com/laravel12-react
+          cd /var/www/thanankridchn.csbootstrap.com
           git pull origin main
           composer install --no-interaction
           npm install
