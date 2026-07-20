@@ -1,49 +1,48 @@
 import BootstrapLayout from "@/Layouts/BootstrapLayout";
 import { Head } from "@inertiajs/react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 
-// การตั้งค่าสำหรับดาว
+// ชุดข้อความที่ดูเป็นทางการและมืออาชีพมากขึ้น
 const ratingConfig = {
-  0: { text: "คลิกเพื่อประเมินความพึงพอใจ", color: "#a4b0be", emoji: "🤔", shadow: "none" },
-  1: { text: "ต้องปรับปรุงอย่างด่วน 🚨", color: "#ff4757", emoji: "😡", shadow: "0px 10px 20px rgba(255, 71, 87, 0.4)" },
-  2: { text: "พอใช้ได้ 😅", color: "#ffa502", emoji: "😟", shadow: "0px 10px 20px rgba(255, 165, 2, 0.4)" },
-  3: { text: "ปานกลาง 🙂", color: "#eccc68", emoji: "😐", shadow: "0px 10px 20px rgba(236, 204, 104, 0.4)" },
-  4: { text: "ดีเลยทีเดียว! 😃", color: "#2ed573", emoji: "😊", shadow: "0px 10px 20px rgba(46, 213, 115, 0.4)" },
-  5: { text: "สุดยอดไปเลย! 🌟", color: "#f1c40f", emoji: "🤩", shadow: "0px 0px 30px rgba(241, 196, 15, 0.8)" }
+  0: { text: "กรุณาให้คะแนนความพึงพอใจ", color: "#64748b", icon: "bi-star" },
+  1: { text: "ผิดหวังมาก ต้องปรับปรุง", color: "#ef4444", icon: "bi-emoji-frown" },
+  2: { text: "ค่อนข้างแย่ มีข้อบกพร่อง", color: "#f97316", icon: "bi-emoji-expressionless" },
+  3: { text: "ปานกลาง ตามมาตรฐาน", color: "#eab308", icon: "bi-emoji-neutral" },
+  4: { text: "ดี ประทับใจ", color: "#22c55e", icon: "bi-emoji-smile" },
+  5: { text: "ยอดเยี่ยมมาก!", color: "#3b82f6", icon: "bi-emoji-heart-eyes" }
 };
 
-// ชุดคำตอบสำเร็จรูป (Tags) เปลี่ยนไปตามคะแนนที่ให้
-const positiveTags = ["บริการรวดเร็ว ⚡", "พนักงานสุภาพ 🧑‍💼", "คุ้มค่าราคา 💰", "บรรยากาศดี 🌴", "สะอาดสะอ้าน ✨"];
-const negativeTags = ["รอนานเกินไป ⏳", "พนักงานไม่สนใจ 😒", "ราคาแพงเกินไป 💸", "สถานที่ไม่สะอาด 🧹", "ต้องปรับปรุง 🛠️"];
+const positiveTags = ["บริการรวดเร็ว", "พนักงานสุภาพ", "คุ้มค่าราคา", "สถานที่สะอาด", "ให้คำแนะนำดี"];
+const negativeTags = ["รอนานเกินไป", "พนักงานบริการไม่ดี", "ราคาแพงเกินไป", "สถานที่แคบ/ไม่สะอาด", "ระบบมีปัญหา"];
 
 export default function Quiz3() {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   
-  // State สำหรับฟังก์ชันใหม่
+  // ฟีเจอร์ที่เพิ่มเข้ามาใหม่
+  const [serviceBranch, setServiceBranch] = useState("");
+  const [recommend, setRecommend] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  
   const [selectedTags, setSelectedTags] = useState([]);
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
 
-  // Ref สำหรับเลื่อนหน้าจออัตโนมัติ
   const detailsRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const currentValue = hover || rating;
   const currentConfig = ratingConfig[currentValue];
 
-  // เมื่อเลือกดาวเสร็จ ให้เลื่อนหน้าจอลงมาที่ส่วนกรอกรายละเอียด
   const handleRatingClick = (star) => {
     setRating(star);
-    setSelectedTags([]); // รีเซ็ต tags เมื่อเปลี่ยนคะแนน
-    setIsAnimating(true);
-    setTimeout(() => setIsAnimating(false), 300);
+    setSelectedTags([]); 
     
-    // หน่วงเวลาเล็กน้อยแล้ว Scroll ลง
+    // Auto-scroll ลงมาส่วนฟอร์มอย่างนุ่มนวล
     setTimeout(() => {
       detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 400);
+    }, 200);
   };
 
   const toggleTag = (tag) => {
@@ -54,11 +53,18 @@ export default function Quiz3() {
     }
   };
 
+  // จำลองการอัปโหลดไฟล์
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file.name);
+    }
+  };
+
   const handleSubmit = () => {
     if (rating === 0) return;
-    
-    // จำลองการโหลดข้อมูล (Loading Effect)
     setIsSubmitting(true);
+    // จำลองการส่ง API
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSubmitted(true);
@@ -70,150 +76,156 @@ export default function Quiz3() {
 
   return (
     <BootstrapLayout>
-      <Head title="Feedback Pro Experience" />
+      <Head title="Customer Feedback" />
       
       <style>{`
-        body { background-color: #f8f9fa; }
-        .glass-card {
-          background: rgba(255, 255, 255, 0.95);
-          border-radius: 25px;
-          border: 1px solid rgba(255,255,255,0.8);
-          box-shadow: 0 15px 35px rgba(0,0,0,0.05);
-          transition: all 0.4s ease;
+        body { background-color: #f1f5f9; font-family: 'Prompt', sans-serif; }
+        .pro-card {
+          background: #ffffff;
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
         .star-item {
-          font-size: 55px;
+          font-size: 45px;
           cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          display: inline-block;
+          color: #cbd5e1;
+          transition: all 0.2s ease;
+          line-height: 1;
         }
-        .star-item:hover { transform: scale(1.3) translateY(-10px) !important; }
-        .pop-animation { animation: popBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .reveal-section {
-          animation: slideUpFade 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+        .star-item.active {
+          color: #f59e0b;
         }
+        .star-item:hover { transform: scale(1.15); }
         .tag-btn {
-          border: 2px solid #e2e8f0;
-          background: white;
-          color: #64748b;
-          border-radius: 50px;
+          border: 1px solid #cbd5e1;
+          background: transparent;
+          color: #475569;
+          border-radius: 8px;
           padding: 8px 16px;
-          cursor: pointer;
+          font-size: 14px;
           transition: all 0.2s;
+        }
+        .tag-btn:hover { background: #f8fafc; }
+        .tag-btn.active {
+          border-color: #3b82f6;
+          background: #eff6ff;
+          color: #1d4ed8;
           font-weight: 500;
         }
-        .tag-btn.active {
-          border-color: ${currentConfig.color};
-          background: ${currentConfig.color}15; /* สีโปร่งใส */
-          color: ${currentConfig.color};
-          transform: scale(1.05);
+        .upload-box {
+          border: 2px dashed #cbd5e1;
+          border-radius: 12px;
+          padding: 20px;
+          text-align: center;
+          cursor: pointer;
+          color: #64748b;
+          transition: all 0.2s;
         }
-        .custom-textarea {
-          border: 2px solid #e2e8f0;
-          border-radius: 15px;
-          resize: none;
-          transition: border-color 0.3s;
+        .upload-box:hover { border-color: #3b82f6; background: #f8fafc; }
+        .form-select, .form-control { border-radius: 8px; border-color: #cbd5e1; }
+        .form-control:focus, .form-select:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
-        .custom-textarea:focus {
-          border-color: ${currentConfig.color};
-          box-shadow: 0 0 0 4px ${currentConfig.color}20;
-          outline: none;
+        .recommend-btn {
+          border: 1px solid #cbd5e1;
+          background: white;
+          border-radius: 8px;
+          color: #475569;
         }
-        
-        @keyframes slideUpFade {
-          0% { opacity: 0; transform: translateY(50px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes popBounce {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.4) rotate(10deg); }
-          100% { transform: scale(1) rotate(0deg); }
-        }
-        .spinner-border { width: 1.5rem; height: 1.5rem; }
+        .recommend-btn.active-yes { background: #dcfce7; border-color: #22c55e; color: #166534; }
+        .recommend-btn.active-no { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
       `}</style>
 
-      <div className="container py-5" style={{ maxWidth: '700px' }}>
+      <div className="container py-5" style={{ maxWidth: '650px' }}>
         
         {isSubmitted ? (
           /* ==========================================
-             หน้าจอ: เมื่อกดส่งข้อมูลแล้ว (Success Screen)
+             หน้า Success (ดีไซน์แบบแอปส่งอาหาร)
              ========================================== */
-          <div className="glass-card p-5 text-center reveal-section mt-5">
-            <div className="mb-4" style={{ fontSize: '100px', lineHeight: '1' }}>🎊</div>
-            <h1 className="fw-bolder mb-3" style={{ color: currentConfig.color }}>ส่งข้อมูลสำเร็จ!</h1>
-            <p className="text-muted fs-5 mb-4">ขอบคุณที่ร่วมแบ่งปันประสบการณ์กับเรา</p>
+          <div className="pro-card p-5 text-center mt-4">
+            <div className="mb-4">
+              <i className="bi bi-check-circle-fill" style={{ fontSize: '80px', color: '#22c55e' }}></i>
+            </div>
+            <h2 className="fw-bold text-dark mb-2">ได้รับข้อเสนอแนะแล้ว</h2>
+            <p className="text-muted mb-4">ขอบคุณที่สละเวลา ข้อมูลของคุณจะช่วยเราพัฒนาให้ดียิ่งขึ้น</p>
             
-            <div className="p-4 mb-4 rounded-4" style={{ backgroundColor: '#f8f9fa', border: '1px dashed #cbd5e1' }}>
-              <div className="fs-5 text-muted mb-2">สรุปรีวิวของคุณ</div>
-              <div className="fs-3 fw-bold mb-3" style={{ color: currentConfig.color }}>
-                {rating} ดาว {currentConfig.emoji}
-              </div>
+            <div className="bg-light p-4 rounded-3 text-start mb-4">
+              <p className="mb-2"><strong>สาขา/บริการ:</strong> {serviceBranch || "ไม่ระบุ"}</p>
+              <p className="mb-2"><strong>คะแนน:</strong> {rating} / 5 ดาว</p>
               {selectedTags.length > 0 && (
-                <div className="d-flex flex-wrap justify-content-center gap-2 mb-3">
-                  {selectedTags.map(t => <span key={t} className="badge bg-secondary rounded-pill px-3 py-2">{t}</span>)}
-                </div>
+                <p className="mb-2"><strong>สิ่งที่พบ:</strong> {selectedTags.join(", ")}</p>
               )}
-              {comment && <div className="text-start fst-italic text-muted px-4">"{comment}"</div>}
+              {imageFile && <p className="mb-2"><strong>รูปภาพแนบ:</strong> <i className="bi bi-image"></i> {imageFile}</p>}
             </div>
 
             <button 
-              className="btn btn-light rounded-pill px-5 py-3 fw-bold text-muted shadow-sm hover-shadow w-100"
-              onClick={() => { setIsSubmitted(false); setRating(0); setHover(0); setSelectedTags([]); setComment(""); }}
+              className="btn btn-outline-secondary rounded-pill px-4"
+              onClick={() => window.location.reload()}
             >
-              <i className="bi bi-arrow-counterclockwise"></i> ประเมินบริการใหม่อีกครั้ง
+              กลับสู่หน้าหลัก
             </button>
           </div>
         ) : (
           /* ==========================================
-             หน้าจอ: กำลังทำแบบฟอร์ม
+             หน้าฟอร์มรีวิว
              ========================================== */
           <>
-            {/* Section 1: ส่วนให้ดาว */}
-            <div className="glass-card p-5 text-center mb-4">
-              <h2 className="mb-2 fw-bold text-dark">ประสบการณ์ของคุณเป็นอย่างไร?</h2>
-              <p className="text-muted mb-4">แตะที่ดาวเพื่อประเมินความพึงพอใจของคุณ</p>
-              
-              <div className={`mb-3 ${isAnimating ? 'pop-animation' : ''}`} style={{ fontSize: '70px', transition: 'all 0.3s' }}>
-                {currentConfig.emoji}
-              </div>
+            <div className="mb-4 text-center">
+              <h2 className="fw-bold text-dark">ประเมินความพึงพอใจ</h2>
+              <p className="text-muted">ความพึงพอใจของคุณคือสิ่งสำคัญสำหรับเรา</p>
+            </div>
 
-              <div className="d-flex justify-content-center gap-2 mb-3">
-                {[1, 2, 3, 4, 5].map((star) => {
-                  const isActive = star <= currentValue;
-                  return (
-                    <span
+            {/* ส่วนที่ 1: ข้อมูลเบื้องต้น */}
+            <div className="pro-card p-4 mb-4">
+              <label className="form-label fw-bold">1. บริการที่คุณต้องการรีวิว <span className="text-danger">*</span></label>
+              <select 
+                className="form-select mb-4" 
+                value={serviceBranch}
+                onChange={(e) => setServiceBranch(e.target.value)}
+              >
+                <option value="">-- กรุณาเลือกสาขาหรือประเภทบริการ --</option>
+                <option value="สั่งซื้อออนไลน์ (Website)">สั่งซื้อออนไลน์ (Website)</option>
+                <option value="บริการหน้าร้าน (สาขาหลัก)">บริการหน้าร้าน (สาขาหลัก)</option>
+                <option value="ติดต่อแจ้งปัญหา (Support)">ติดต่อแจ้งปัญหา (Support)</option>
+                <option value="บริการจัดส่งสินค้า">บริการจัดส่งสินค้า</option>
+              </select>
+
+              <label className="form-label fw-bold">2. คุณพึงพอใจแค่ไหน? <span className="text-danger">*</span></label>
+              <div className="d-flex flex-column align-items-center mt-2">
+                <div className="d-flex gap-2 mb-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <i
                       key={star}
-                      className="star-item"
-                      style={{
-                        color: isActive ? currentConfig.color : '#e2e8f0',
-                        textShadow: isActive ? currentConfig.shadow : 'none',
-                        transform: star <= hover ? 'scale(1.2) translateY(-8px)' : 'scale(1) translateY(0)'
-                      }}
+                      className={`bi bi-star-fill star-item ${star <= currentValue ? 'active' : ''}`}
                       onClick={() => handleRatingClick(star)}
                       onMouseEnter={() => setHover(star)}
                       onMouseLeave={() => setHover(0)}
-                    >
-                      ★
-                    </span>
-                  );
-                })}
+                    ></i>
+                  ))}
+                </div>
+                
+                <div className="d-flex align-items-center gap-2 mt-2" style={{ height: '24px' }}>
+                  {currentValue > 0 && (
+                    <>
+                      <i className={`bi ${currentConfig.icon} fs-5`} style={{ color: currentConfig.color }}></i>
+                      <span className="fw-medium" style={{ color: currentConfig.color }}>{currentConfig.text}</span>
+                    </>
+                  )}
+                </div>
               </div>
-
-              <h4 className="fw-bold" style={{ color: currentConfig.color, minHeight: '30px', transition: 'color 0.3s' }}>
-                {currentConfig.text}
-              </h4>
             </div>
 
-            {/* Section 2: ส่วนรายละเอียด (จะโผล่มาเมื่อให้ดาวแล้วเท่านั้น) */}
+            {/* ส่วนที่ 2: รายละเอียด (แสดงเมื่อให้ดาวแล้ว) */}
             {rating > 0 && (
-              <div ref={detailsRef} className="reveal-section">
+              <div ref={detailsRef} style={{ animation: 'fadeIn 0.5s ease' }}>
                 
-                {/* 2.1 เลือก Tags */}
-                <div className="glass-card p-4 mb-4">
-                  <h5 className="fw-bold mb-3">
-                    {rating >= 4 ? 'สิ่งใดที่คุณประทับใจมากที่สุด?' : 'สิ่งใดที่เราควรปรับปรุง?'} (เลือกได้มากกว่า 1)
-                  </h5>
-                  <div className="d-flex flex-wrap gap-2">
+                <div className="pro-card p-4 mb-4">
+                  <label className="form-label fw-bold">
+                    {rating >= 4 ? 'สิ่งที่คุณประทับใจ (เลือกได้หลายข้อ)' : 'สิ่งที่เราควรปรับปรุง (เลือกได้หลายข้อ)'}
+                  </label>
+                  <div className="d-flex flex-wrap gap-2 mb-4">
                     {currentTags.map(tag => (
                       <button
                         key={tag}
@@ -224,43 +236,75 @@ export default function Quiz3() {
                       </button>
                     ))}
                   </div>
-                </div>
 
-                {/* 2.2 พิมพ์ข้อความเพิ่มเติม */}
-                <div className="glass-card p-4 mb-4">
-                  <h5 className="fw-bold mb-3">บอกเราเพิ่มเติมอีกนิด (ไม่บังคับ)</h5>
+                  <label className="form-label fw-bold">ข้อเสนอแนะเพิ่มเติม</label>
                   <textarea 
-                    className="form-control custom-textarea p-3" 
-                    rows="4" 
-                    placeholder="พิมพ์ความคิดเห็น หรือข้อเสนอแนะของคุณที่นี่..."
+                    className="form-control mb-3" 
+                    rows="3" 
+                    placeholder="อธิบายเพิ่มเติมเกี่ยวกับประสบการณ์ของคุณ..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                   ></textarea>
-                  <div className="text-end text-muted mt-2" style={{ fontSize: '12px' }}>
-                    {comment.length} ตัวอักษร
+
+                  {/* ฟีเจอร์แนบรูปภาพ */}
+                  <label className="form-label fw-bold mt-2">แนบรูปภาพประกอบ (ถ้ามี)</label>
+                  <div 
+                    className="upload-box"
+                    onClick={() => fileInputRef.current.click()}
+                  >
+                    {imageFile ? (
+                      <div className="text-primary fw-medium">
+                        <i className="bi bi-file-image me-2"></i> {imageFile}
+                        <span className="text-muted ms-2" style={{fontSize: '12px'}}>(คลิกเพื่อเปลี่ยนรูป)</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <i className="bi bi-cloud-arrow-up fs-3 mb-2 d-block"></i>
+                        คลิกเพื่ออัปโหลดรูปภาพ (สูงสุด 5MB)
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="d-none" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
                   </div>
                 </div>
 
-                {/* 2.3 ปุ่ม Submit พร้อม Loading */}
+                {/* ฟีเจอร์ แนะนำเพื่อน */}
+                <div className="pro-card p-4 mb-4 text-center">
+                  <label className="form-label fw-bold mb-3">คุณจะแนะนำบริการของเราให้เพื่อนหรือคนรู้จักหรือไม่?</label>
+                  <div className="d-flex justify-content-center gap-3">
+                    <button 
+                      className={`btn recommend-btn px-4 py-2 ${recommend === true ? 'active-yes' : ''}`}
+                      onClick={() => setRecommend(true)}
+                    >
+                      <i className="bi bi-hand-thumbs-up me-2"></i> แนะนำแน่นอน
+                    </button>
+                    <button 
+                      className={`btn recommend-btn px-4 py-2 ${recommend === false ? 'active-no' : ''}`}
+                      onClick={() => setRecommend(false)}
+                    >
+                      <i className="bi bi-hand-thumbs-down me-2"></i> ไม่แนะนำ
+                    </button>
+                  </div>
+                </div>
+
+                {/* ปุ่ม Submit */}
                 <button 
-                  className="btn rounded-pill px-5 py-3 fs-5 fw-bold text-white border-0 w-100 shadow"
-                  style={{ 
-                    backgroundColor: currentConfig.color,
-                    transition: 'all 0.3s ease',
-                    opacity: isSubmitting ? 0.8 : 1
-                  }}
+                  className="btn btn-primary rounded-8 px-5 py-3 fs-6 fw-bold w-100 shadow-sm"
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !serviceBranch}
                 >
                   {isSubmitting ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      กำลังส่งข้อมูล...
-                    </>
+                    <><span className="spinner-border spinner-border-sm me-2"></span> กำลังส่งข้อมูล...</>
                   ) : (
-                    "ส่งข้อเสนอแนะ 🚀"
+                    "ส่งข้อเสนอแนะ"
                   )}
                 </button>
+                {!serviceBranch && <p className="text-danger text-center mt-2" style={{fontSize: '13px'}}>* กรุณาเลือกบริการที่คุณต้องการรีวิวด้านบนก่อน</p>}
 
               </div>
             )}
