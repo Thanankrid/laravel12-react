@@ -178,7 +178,7 @@ export default function Quiz3() {
                 }}
                 onClick={handleSubmit}
               >
-                ส่งความพึงพอใจ 🚀
+                ส่งความพึงพอใจ!🚀
               </button>
             </div>
           )}
