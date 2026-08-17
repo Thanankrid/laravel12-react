@@ -5,6 +5,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\WeightController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -105,3 +106,20 @@ Route::get('/quiz4', function () {
     return Inertia::render('Quiz4'); 
 })->name('quiz4');
 
+Route::get('/product-manager', function () {
+    $p = Product::all();
+    return Inertia::render('ProductManager', compact('p'));
+})->name('product-manager');
+
+Route::get('/product/create', function () {
+    return Inertia::render('ProductForm');
+})->name('product.create');
+
+Route::get('/product/{id}/edit', function ($id) {
+    $product = Product::findOrFail($id);
+    return Inertia::render('ProductForm', compact('product'));
+})->name('product.edit');
+
+
+// สร้าง Route ครบทุก Action (index, create, store, edit, update, destroy)
+Route::resource('weights', WeightController::class);
