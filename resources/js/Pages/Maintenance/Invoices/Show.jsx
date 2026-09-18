@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import MaintenanceLayout from '@/Layouts/MaintenanceLayout';
 import useFixFlowSettings from '@/hooks/useFixFlowSettings';
 
 export default function Show({ invoiceId }) {
     const { language } = useFixFlowSettings();
+    const user = usePage().props.auth.user;
+    const isAdmin = user.role === 'admin';
 
     const [invoice, setInvoice] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -39,6 +41,15 @@ export default function Show({ invoiceId }) {
             unpaid: 'ยังไม่ชำระ',
             paid: 'ชำระแล้ว',
             cancelled: 'ยกเลิก',
+            paidAt: 'ชำระเมื่อ',
+            method: 'ช่องทาง',
+            reference: 'เลขอ้างอิง',
+            promptpay: 'พร้อมเพย์',
+            card: 'บัตรเครดิต/เดบิต',
+            awaitingPayment: 'รอผู้แจ้งชำระเงินผ่านระบบ สถานะจะเปลี่ยนเป็นชำระแล้วโดยอัตโนมัติ',
+            payNow: 'ชำระเงิน',
+            cancelInvoice: 'ยกเลิกใบแจ้งหนี้',
+            cancelConfirm: 'ยืนยันการยกเลิกใบแจ้งหนี้นี้?',
 
             note: 'หมายเหตุ',
             noNote: 'ไม่มีหมายเหตุ',
@@ -98,6 +109,15 @@ export default function Show({ invoiceId }) {
             unpaid: 'Unpaid',
             paid: 'Paid',
             cancelled: 'Cancelled',
+            paidAt: 'Paid at',
+            method: 'Method',
+            reference: 'Reference',
+            promptpay: 'PromptPay',
+            card: 'Credit/debit card',
+            awaitingPayment: 'Waiting for the requester to pay online. The status changes to paid automatically.',
+            payNow: 'Pay now',
+            cancelInvoice: 'Cancel invoice',
+            cancelConfirm: 'Cancel this invoice?',
 
             note: 'Note',
             noNote: 'No note',
@@ -153,24 +173,25 @@ export default function Show({ invoiceId }) {
         loadInvoice();
     }, [invoiceId]);
 
-    const updatePaymentStatus = async (status) => {
+    const cancelInvoice = async () => {
+        if (!confirm(t.cancelConfirm)) {
+            return;
+        }
+
         setUpdating(true);
 
         try {
             await axios.put(
                 `/api/maintenance/invoices/${invoiceId}`,
                 {
-                    payment_status: status,
-                    note: invoice?.note ?? null,
+                    payment_status: 'cancelled',
                 }
             );
 
             await loadInvoice();
-
-            alert(t.updateSuccess);
         } catch (error) {
             console.error(error);
-            alert(t.updateError);
+            alert(error.response?.data?.message ?? t.updateError);
         } finally {
             setUpdating(false);
         }
@@ -1066,7 +1087,7 @@ export default function Show({ invoiceId }) {
                         </section>
 
 
-                        {/* PAYMENT STATUS */}
+                        {/* PAYMENT STATUS: เปลี่ยนเป็นชำระแล้วอัตโนมัติเมื่อผู้แจ้งชำระเงินผ่านระบบ */}
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
                             <div className="flex items-center gap-3">
@@ -1075,66 +1096,66 @@ export default function Show({ invoiceId }) {
                                     <i className="bi bi-credit-card"></i>
                                 </div>
 
-                                <div>
-
-                                    <h3 className="font-bold text-slate-900">
-                                        {t.paymentStatus}
-                                    </h3>
-
-                                </div>
+                                <h3 className="font-bold text-slate-900">
+                                    {t.paymentStatus}
+                                </h3>
 
                             </div>
 
+                            <div className={`mt-5 rounded-xl px-4 py-3 text-sm font-semibold ${paymentClass[invoice.payment_status] ?? ''}`}>
+                                {paymentText[invoice.payment_status] ?? invoice.payment_status}
+                            </div>
 
-                            <select
-                                value={invoice.payment_status}
-                                onChange={(e) =>
-                                    setInvoice({
-                                        ...invoice,
-                                        payment_status:
-                                            e.target.value,
-                                    })
-                                }
-                                className="mt-5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                            >
+                            {invoice.payment_status === 'paid' && (
+                                <dl className="mt-4 space-y-2 text-sm">
+                                    <div className="flex justify-between gap-3">
+                                        <dt className="text-slate-500">{t.paidAt}</dt>
+                                        <dd className="font-semibold text-slate-900">
+                                            {invoice.paid_at
+                                                ? new Date(invoice.paid_at).toLocaleString(language === 'en' ? 'en-US' : 'th-TH', { dateStyle: 'medium', timeStyle: 'short' })
+                                                : '-'}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between gap-3">
+                                        <dt className="text-slate-500">{t.method}</dt>
+                                        <dd className="font-semibold text-slate-900">{t[invoice.payment_method] ?? invoice.payment_method ?? '-'}</dd>
+                                    </div>
+                                    <div className="flex justify-between gap-3">
+                                        <dt className="text-slate-500">{t.reference}</dt>
+                                        <dd className="font-semibold text-slate-900">{invoice.payment_ref ?? '-'}</dd>
+                                    </div>
+                                </dl>
+                            )}
 
-                                <option value="unpaid">
-                                    {t.unpaid}
-                                </option>
+                            {invoice.payment_status === 'unpaid' && (
+                                <>
+                                    <p className="mt-4 text-sm leading-6 text-slate-500">
+                                        {t.awaitingPayment}
+                                    </p>
 
-                                <option value="paid">
-                                    {t.paid}
-                                </option>
+                                    {(isAdmin || invoice.request?.user_id === user.id) && (
+                                        <Link
+                                            href={`/maintenance/invoices/${invoice.id}/pay`}
+                                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white no-underline transition hover:bg-emerald-700"
+                                        >
+                                            <i className="bi bi-wallet2"></i>
+                                            {t.payNow}
+                                        </Link>
+                                    )}
 
-                                <option value="cancelled">
-                                    {t.cancelled}
-                                </option>
-
-                            </select>
-
-
-                            <button
-                                type="button"
-                                disabled={updating}
-                                onClick={() =>
-                                    updatePaymentStatus(
-                                        invoice.payment_status
-                                    )
-                                }
-                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {updating ? (
-                                    <>
-                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
-                                        {t.saving}
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="bi bi-check2-circle"></i>
-                                        {t.saveStatus}
-                                    </>
-                                )}
-                            </button>
+                                    {isAdmin && (
+                                        <button
+                                            type="button"
+                                            disabled={updating}
+                                            onClick={cancelInvoice}
+                                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <i className="bi bi-x-circle"></i>
+                                            {updating ? t.saving : t.cancelInvoice}
+                                        </button>
+                                    )}
+                                </>
+                            )}
 
                         </section>
 

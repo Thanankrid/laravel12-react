@@ -516,7 +516,42 @@ export default function Index() {
 
                     ) : (
 
-                        <div className="w-full">
+                        <>
+                        {/* มือถือ: แสดงเป็นการ์ดแทนตารางที่แคบเกินไป */}
+                        <div className="divide-y divide-slate-100 md:hidden">
+                            {requests.map((item) => (
+                                <Link
+                                    key={item.id}
+                                    href={`/maintenance/requests/${item.id}`}
+                                    className="block px-5 py-4 no-underline transition hover:bg-slate-50/80"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="font-bold text-slate-900">
+                                            {item.request_no}
+                                        </span>
+                                        <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${statusClass[item.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                                            {statusText[item.status] ?? item.status}
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 font-semibold text-slate-900">
+                                        {item.title}
+                                    </div>
+                                    <div className="mt-1 text-sm text-slate-500">
+                                        {item.equipment_type} · {item.location}
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                                        <span className={`inline-flex rounded-full px-2.5 py-1 font-bold ${priorityClass[item.priority] ?? 'bg-slate-100 text-slate-600'}`}>
+                                            {priorityText[item.priority] ?? item.priority}
+                                        </span>
+                                        <span className="truncate text-slate-500">
+                                            {item.technician?.name ?? t.noTechnician}
+                                        </span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+
+                        <div className="hidden w-full md:block">
 
                             <table className="w-full table-fixed">
 
@@ -568,7 +603,7 @@ export default function Index() {
                                             {/* REQUEST NUMBER */}
                                             <td className="px-4 py-4 align-top">
 
-                                                <div className="truncate font-bold text-slate-900">
+                                                <div className="whitespace-nowrap text-sm font-bold text-slate-900">
                                                     {item.request_no}
                                                 </div>
 
@@ -730,6 +765,7 @@ export default function Index() {
                             </table>
 
                         </div>
+                        </>
                     )}
 
                 </section>

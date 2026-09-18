@@ -16,12 +16,16 @@ class MaintenanceInvoice extends Model
         'parts_cost',
         'total_amount',
         'payment_status',
+        'paid_at',
+        'payment_method',
+        'payment_ref',
         'note',
         'issued_at',
     ];
 
     protected $casts = [
         'issued_at' => 'date',
+        'paid_at' => 'datetime',
     ];
 
     public function request()

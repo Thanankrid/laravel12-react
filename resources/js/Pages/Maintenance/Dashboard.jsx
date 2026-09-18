@@ -369,7 +369,34 @@ export default function Dashboard() {
 
                             </div>
                         ) : (
-                            <div className="w-full">
+                            <>
+                            {/* มือถือ: แสดงเป็นการ์ดแทนตาราง */}
+                            <div className="divide-y divide-slate-100 md:hidden">
+                                {recentRequests.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        href={`/maintenance/requests/${item.id}`}
+                                        className="block px-5 py-4 no-underline transition hover:bg-slate-50/80"
+                                    >
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="font-bold text-slate-900">
+                                                {item.request_no}
+                                            </span>
+                                            <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${statusClass[item.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                {statusText[item.status] ?? item.status}
+                                            </span>
+                                        </div>
+                                        <div className="mt-2 font-semibold text-slate-900">
+                                            {item.title}
+                                        </div>
+                                        <div className="mt-1 text-sm text-slate-500">
+                                            {item.equipment_type} · {item.location}
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+
+                            <div className="hidden w-full md:block">
 
                                 <table className="w-full table-fixed">
 
@@ -377,23 +404,23 @@ export default function Dashboard() {
 
                                         <tr className="border-b border-slate-200">
 
-                                            <th className="w-[17%] px-5 py-3 text-left text-xs font-bold text-slate-500">
+                                            <th className="w-[20%] px-5 py-3 text-left text-xs font-bold text-slate-500">
                                                 {t.requestNo}
                                             </th>
 
-                                            <th className="w-[31%] px-5 py-3 text-left text-xs font-bold text-slate-500">
+                                            <th className="w-[32%] px-5 py-3 text-left text-xs font-bold text-slate-500">
                                                 {t.detail}
                                             </th>
 
-                                            <th className="w-[19%] px-5 py-3 text-left text-xs font-bold text-slate-500">
+                                            <th className="w-[18%] px-5 py-3 text-left text-xs font-bold text-slate-500">
                                                 {t.location}
                                             </th>
 
-                                            <th className="w-[16%] px-5 py-3 text-left text-xs font-bold text-slate-500">
+                                            <th className="w-[20%] px-5 py-3 text-left text-xs font-bold text-slate-500">
                                                 {t.status}
                                             </th>
 
-                                            <th className="w-[17%] px-5 py-3 text-right text-xs font-bold text-slate-500">
+                                            <th className="w-[10%] px-5 py-3 text-right text-xs font-bold text-slate-500">
                                                 {t.action}
                                             </th>
 
@@ -413,7 +440,7 @@ export default function Dashboard() {
 
                                                     <td className="px-5 py-4 align-top">
 
-                                                        <div className="truncate font-bold text-slate-900">
+                                                        <div className="whitespace-nowrap text-sm font-bold text-slate-900">
                                                             {item.request_no}
                                                         </div>
 
@@ -447,6 +474,7 @@ export default function Dashboard() {
                                                         <span
                                                             className={`
                                                                 inline-flex
+                                                                whitespace-nowrap
                                                                 rounded-full
                                                                 px-3 py-1.5
                                                                 text-xs
@@ -473,8 +501,10 @@ export default function Dashboard() {
                                                         <Link
                                                             href={`/maintenance/requests/${item.id}`}
                                                             className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-600 no-underline transition hover:bg-blue-50"
+                                                            title={t.viewDetail}
+                                                            aria-label={t.viewDetail}
                                                         >
-                                                            {t.viewDetail}
+                                                            <i className="bi bi-eye"></i>
                                                         </Link>
 
                                                     </td>
@@ -488,6 +518,7 @@ export default function Dashboard() {
                                 </table>
 
                             </div>
+                            </>
                         )}
 
                     </div>

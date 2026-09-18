@@ -231,6 +231,11 @@ class RepairLogController extends Controller
             return;
         }
 
+        // ใบที่ชำระแล้วหรือยกเลิกแล้วเก็บยอดเดิมไว้เป็นหลักฐาน
+        if ($invoice->payment_status !== 'unpaid') {
+            return;
+        }
+
 
         /*
         |--------------------------------------------------------------------------

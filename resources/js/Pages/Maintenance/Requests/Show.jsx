@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import MaintenanceLayout from "@/Layouts/MaintenanceLayout";
 import useFixFlowSettings from "@/hooks/useFixFlowSettings";
 
 export default function Show({ requestId }) {
     const { language } = useFixFlowSettings();
+    const user = usePage().props.auth.user;
+    const isAdmin = user.role === "admin";
+    const isStaff = isAdmin || user.role === "technician";
 
     const [item, setItem] = useState(null);
     const [technicians, setTechnicians] = useState([]);
@@ -52,6 +55,8 @@ export default function Show({ requestId }) {
             location: "สถานที่",
             technician: "ช่างที่รับผิดชอบ",
             notAssigned: "ยังไม่ได้มอบหมาย",
+            noInvoice: "ยังไม่มีใบแจ้งหนี้",
+            payNow: "ชำระเงิน",
             problemDetails: "รายละเอียดปัญหา",
             noDescription: "ไม่มีรายละเอียดเพิ่มเติม",
 
@@ -150,6 +155,8 @@ export default function Show({ requestId }) {
             location: "Location",
             technician: "Assigned Technician",
             notAssigned: "Not assigned",
+            noInvoice: "No invoice yet",
+            payNow: "Pay now",
             problemDetails: "Issue Description",
             noDescription: "No additional description",
 
@@ -500,6 +507,11 @@ export default function Show({ requestId }) {
         );
     }
 
+    // ตรงกับสิทธิ์ใน API: แต่ละ Role เห็นเฉพาะปุ่มที่ใช้งานได้
+    const canEditRequest =
+        isAdmin || (item.user_id === user.id && item.status === "pending");
+    const canUpdateStatus = isAdmin || item.technician_id === user.id;
+
     return (
         <MaintenanceLayout title={t.layoutTitle}>
             <Head title={item.request_no} />
@@ -561,6 +573,7 @@ export default function Show({ requestId }) {
                             </span>
                         </div>
 
+                        {canEditRequest && (
                         <div className="flex flex-wrap gap-2">
                             <Link
                                 href={`/maintenance/requests/${requestId}/edit`}
@@ -589,6 +602,7 @@ export default function Show({ requestId }) {
                                 )}
                             </button>
                         </div>
+                        )}
                     </div>
                 </section>
 
@@ -779,6 +793,7 @@ export default function Show({ requestId }) {
                                 )}
 
                                 {/* ADD LOG */}
+                                {isStaff && (
                                 <form
                                     onSubmit={saveRepairLog}
                                     className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5"
@@ -884,6 +899,7 @@ export default function Show({ requestId }) {
                                         </button>
                                     </div>
                                 </form>
+                                )}
                             </div>
                         </section>
                     </div>
@@ -891,6 +907,7 @@ export default function Show({ requestId }) {
                     {/* RIGHT */}
                     <div className="space-y-6">
                         {/* ASSIGN */}
+                        {isAdmin && (
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
@@ -940,8 +957,10 @@ export default function Show({ requestId }) {
                                     : t.assignTechnician}
                             </button>
                         </section>
+                        )}
 
                         {/* STATUS */}
+                        {canUpdateStatus && (
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -992,6 +1011,7 @@ export default function Show({ requestId }) {
                                 {savingStatus ? t.saving : t.saveStatus}
                             </button>
                         </section>
+                        )}
 
                         {/* COST */}
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1107,14 +1127,43 @@ export default function Show({ requestId }) {
                                         </div>
                                     </div>
 
-                                    <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                                        <i className="bi bi-check-circle mr-2"></i>
+                                    <div
+                                        className={`mt-3 rounded-xl px-4 py-3 text-sm font-semibold ${
+                                            {
+                                                paid: "bg-emerald-50 text-emerald-700",
+                                                unpaid: "bg-amber-50 text-amber-700",
+                                                cancelled: "bg-rose-50 text-rose-700",
+                                            }[item.invoice.payment_status] ??
+                                            "bg-slate-100 text-slate-600"
+                                        }`}
+                                    >
+                                        <i
+                                            className={`bi ${
+                                                item.invoice.payment_status === "paid"
+                                                    ? "bi-check-circle"
+                                                    : item.invoice.payment_status === "cancelled"
+                                                      ? "bi-x-circle"
+                                                      : "bi-hourglass-split"
+                                            } mr-2`}
+                                        ></i>
 
                                         {paymentText[
                                             item.invoice.payment_status
                                         ] ?? item.invoice.payment_status}
                                     </div>
 
+                                    {item.invoice.payment_status === "unpaid" &&
+                                        (isAdmin || item.user_id === user.id) && (
+                                            <Link
+                                                href={`/maintenance/invoices/${item.invoice.id}/pay`}
+                                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white no-underline transition hover:bg-emerald-700"
+                                            >
+                                                <i className="bi bi-wallet2"></i>
+                                                {t.payNow}
+                                            </Link>
+                                        )}
+
+                                    {isStaff && (
                                     <Link
                                         href={`/maintenance/invoices/${item.invoice.id}`}
                                         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 no-underline transition hover:bg-emerald-50"
@@ -1122,8 +1171,9 @@ export default function Show({ requestId }) {
                                         <i className="bi bi-eye"></i>
                                         {t.viewInvoice}
                                     </Link>
+                                    )}
                                 </div>
-                            ) : (
+                            ) : isStaff ? (
                                 <button
                                     type="button"
                                     onClick={createInvoice}
@@ -1136,6 +1186,10 @@ export default function Show({ requestId }) {
                                         ? t.creatingInvoice
                                         : t.createInvoice}
                                 </button>
+                            ) : (
+                                <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                                    {t.noInvoice}
+                                </p>
                             )}
                         </section>
                     </div>

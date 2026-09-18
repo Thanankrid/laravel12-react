@@ -7,6 +7,7 @@ use App\Models\MaintenanceInvoice;
 use App\Models\MaintenanceRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class InvoiceController extends Controller
 {
@@ -163,6 +164,7 @@ class InvoiceController extends Controller
 
     // ดูใบแจ้งหนี้
     public function show(
+        Request $request,
         MaintenanceInvoice $invoice
     ) {
         $invoice->load([
@@ -171,6 +173,13 @@ class InvoiceController extends Controller
             'request.repairLogs',
             'items'
         ]);
+
+        // ช่างและ Admin ดูได้ทุกใบ ผู้แจ้งดูได้เฉพาะใบแจ้งหนี้ของงานตัวเอง
+        abort_unless(
+            in_array($request->user()->role, ['admin', 'technician'], true) || $invoice->request->user_id === $request->user()->id,
+            403,
+            'ไม่มีสิทธิ์ดูใบแจ้งหนี้นี้'
+        );
 
         return response()->json(
             $invoice
@@ -183,12 +192,20 @@ class InvoiceController extends Controller
         MaintenanceInvoice $invoice
     ) {
         $validated = $request->validate([
+            // สถานะ "ชำระแล้ว" เกิดจากการชำระเงินผ่านระบบเท่านั้น Admin ทำได้เพียงยกเลิก
             'payment_status' =>
-                'sometimes|required|in:unpaid,paid,cancelled',
+                'sometimes|required|in:cancelled',
 
             'note' =>
                 'nullable|string|max:1000',
         ]);
+
+        // ใบที่ชำระแล้วเป็นหลักฐานการรับเงิน จึงแก้ไขไม่ได้
+        abort_if(
+            $invoice->payment_status === 'paid',
+            409,
+            'ใบแจ้งหนี้ที่ชำระแล้วไม่สามารถแก้ไขได้'
+        );
 
         $invoice->update(
             $validated
@@ -201,6 +218,53 @@ class InvoiceController extends Controller
             'data' =>
                 $invoice->fresh(),
         ]);
+    }
+
+    // ชำระเงินแบบจำลอง: ไม่มีการตัดเงินจริง และไม่รับเลขบัตรเต็ม
+    // หน้าเว็บส่งมาเพียง token ของบัตรทดสอบ เช่น tok_visa_4242
+    public function pay(
+        Request $request,
+        MaintenanceInvoice $invoice
+    ) {
+        $validated = $request->validate([
+            'method' => 'required|in:promptpay,card',
+            'token' => ['nullable', 'required_if:method,card', 'regex:/^tok_(visa|mastercard|jcb)_\d{4}$/'],
+        ]);
+
+        return DB::transaction(function () use ($request, $invoice, $validated) {
+            // ล็อกแถวไว้ กันการกดชำระซ้ำพร้อมกัน
+            $invoice = MaintenanceInvoice::with('request')
+                ->lockForUpdate()
+                ->findOrFail($invoice->id);
+
+            abort_unless(
+                $request->user()->role === 'admin' || $invoice->request->user_id === $request->user()->id,
+                403,
+                'ชำระได้เฉพาะผู้แจ้งงานนี้หรือผู้ดูแลระบบ'
+            );
+
+            abort_if($invoice->payment_status !== 'unpaid', 409, 'ใบแจ้งหนี้นี้ไม่อยู่ในสถานะรอชำระ');
+
+            abort_if((float) $invoice->total_amount <= 0, 422, 'ใบแจ้งหนี้นี้ไม่มียอดที่ต้องชำระ');
+
+            // บัตรทดสอบที่ลงท้ายด้วย 0002 จำลองกรณีธนาคารปฏิเสธ
+            abort_if(
+                $validated['method'] === 'card' && str_ends_with($validated['token'], '_0002'),
+                402,
+                'บัตรถูกปฏิเสธ (บัตรทดสอบ) กรุณาใช้บัตรอื่น'
+            );
+
+            $invoice->update([
+                'payment_status' => 'paid',
+                'paid_at' => now(),
+                'payment_method' => $validated['method'],
+                'payment_ref' => 'SIM-' . now()->format('ymd') . '-' . Str::upper(Str::random(8)),
+            ]);
+
+            return response()->json(
+                $invoice->fresh()->load(['request.requester', 'request.technician', 'items'])
+            );
+        });
     }
 
     // ลบใบแจ้งหนี้
