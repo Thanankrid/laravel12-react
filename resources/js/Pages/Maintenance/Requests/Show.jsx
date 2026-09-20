@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Head, Link, usePage } from "@inertiajs/react";
 import MaintenanceLayout from "@/Layouts/MaintenanceLayout";
+import LocationMap from "@/Components/LocationMap";
 import useFixFlowSettings from "@/hooks/useFixFlowSettings";
 
 export default function Show({ requestId }) {
@@ -14,11 +15,15 @@ export default function Show({ requestId }) {
     const [loading, setLoading] = useState(true);
 
     const [technicianId, setTechnicianId] = useState("");
-    const [status, setStatus] = useState("");
 
     const [savingTechnician, setSavingTechnician] = useState(false);
     const [savingStatus, setSavingStatus] = useState(false);
     const [repairSaving, setRepairSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const [draft, setDraft] = useState("");
+    const [sending, setSending] = useState(false);
+    const [progress, setProgress] = useState(0);
     const [invoiceSaving, setInvoiceSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
@@ -27,6 +32,7 @@ export default function Show({ requestId }) {
         repair_detail: "",
         labor_cost: "",
         parts_cost: "",
+        status: "in_progress",
     });
 
     const text = {
@@ -84,6 +90,43 @@ export default function Show({ requestId }) {
 
             workStatus: "สถานะงาน",
             workStatusDesc: "อัปเดตความคืบหน้า",
+            statusAuto: "สถานะเปลี่ยนเองเมื่อมอบหมายช่าง บันทึกการซ่อม และออกใบแจ้งหนี้",
+            stepReported: "แจ้งซ่อม",
+            stepAssigned: "มอบหมายช่าง",
+            stepInProgress: "กำลังซ่อม",
+            stepCompleted: "เสร็จสิ้น",
+            logWaitingParts: "รออะไหล่ — หยุดรอชิ้นส่วนก่อนซ่อมต่อ",
+            logCompleted: "ซ่อมเสร็จแล้ว — ส่งให้ผู้แจ้งยืนยัน",
+            awaitingConfirmation: "รอผู้แจ้งยืนยัน",
+            admin: "ผู้ดูแลระบบ",
+            stepHandedOver: "ช่างส่งงาน",
+            confirmDone: "ยืนยันว่าซ่อมเรียบร้อย",
+            confirmDoneConfirm: "ยืนยันว่างานซ่อมนี้เรียบร้อยแล้ว?",
+            rejectWork: "ยังไม่เรียบร้อย",
+            rejectPrompt: "บอกช่างว่ายังมีปัญหาอะไร",
+            confirmedBy: "ยืนยันโดย",
+            invoiceAfterConfirm: "ออกใบแจ้งหนี้ได้หลังผู้แจ้งยืนยันว่างานเสร็จ",
+            media: "รูปภาพและวิดีโอ",
+            mediaDesc: "หลักฐานก่อน–หลังซ่อม",
+            noMedia: "ยังไม่มีไฟล์แนบ",
+            addMedia: "เพิ่มรูปภาพหรือวิดีโอ",
+            mediaRules: "JPG, PNG, WebP, MP4, WebM หรือ MOV · ไม่เกิน 25 MB ต่อไฟล์ · สูงสุด 10 ไฟล์",
+            uploadingMedia: "กำลังอัปโหลด",
+            uploadError: "อัปโหลดไฟล์ไม่สำเร็จ",
+            deleteFile: "ลบไฟล์",
+            deleteFileConfirm: "ลบไฟล์นี้?",
+            chat: "พูดคุยกับช่าง",
+            chatWithCustomer: "พูดคุยกับผู้แจ้ง",
+            chatDesc: "สอบถามรายละเอียดเพิ่มเติมระหว่างซ่อม",
+            chatEmpty: "ยังไม่มีข้อความ เริ่มพูดคุยได้เลย",
+            chatPlaceholder: "พิมพ์ข้อความ...",
+            chatSend: "ส่ง",
+            chatError: "ส่งข้อความไม่สำเร็จ",
+            directions: "นำทางไปยังจุดซ่อม",
+            locationNote: "รายละเอียดสถานที่",
+            cancelJob: "ยกเลิกงาน",
+            cancelJobConfirm: "ยืนยันการยกเลิกงานซ่อมนี้?",
+            jobCancelled: "งานนี้ถูกยกเลิกแล้ว",
             saveStatus: "บันทึกสถานะ",
 
             costSummary: "สรุปค่าใช้จ่าย",
@@ -183,7 +226,44 @@ export default function Show({ requestId }) {
             assigning: "Saving...",
 
             workStatus: "Work Status",
-            workStatusDesc: "Update repair progress",
+            workStatusDesc: "Updates as the work happens",
+            statusAuto: "The status changes by itself when a technician is assigned, a repair is logged and the invoice is created.",
+            stepReported: "Reported",
+            stepAssigned: "Technician assigned",
+            stepInProgress: "In progress",
+            stepCompleted: "Completed",
+            logWaitingParts: "Waiting for parts - work pauses until they arrive",
+            logCompleted: "Repair finished - hand over for confirmation",
+            awaitingConfirmation: "Awaiting confirmation",
+            admin: "An administrator",
+            stepHandedOver: "Handed over",
+            confirmDone: "Confirm the repair is done",
+            confirmDoneConfirm: "Confirm this repair is finished?",
+            rejectWork: "Not fixed yet",
+            rejectPrompt: "Tell the technician what is still wrong",
+            confirmedBy: "Confirmed by",
+            invoiceAfterConfirm: "The invoice can be created once the requester confirms the work.",
+            media: "Photos and video",
+            mediaDesc: "Evidence before and after the repair",
+            noMedia: "No files yet",
+            addMedia: "Add a photo or video",
+            mediaRules: "JPG, PNG, WebP, MP4, WebM or MOV - up to 25 MB each - 10 files per job",
+            uploadingMedia: "Uploading",
+            uploadError: "Unable to upload the file",
+            deleteFile: "Delete file",
+            deleteFileConfirm: "Delete this file?",
+            chat: "Chat with the technician",
+            chatWithCustomer: "Chat with the requester",
+            chatDesc: "Ask for details while the repair is going on",
+            chatEmpty: "No messages yet. Say hello.",
+            chatPlaceholder: "Write a message...",
+            chatSend: "Send",
+            chatError: "Unable to send the message",
+            directions: "Get directions",
+            locationNote: "Location details",
+            cancelJob: "Cancel job",
+            cancelJobConfirm: "Cancel this repair request?",
+            jobCancelled: "This job was cancelled",
             saveStatus: "Save Status",
 
             costSummary: "Cost Summary",
@@ -245,7 +325,6 @@ export default function Show({ requestId }) {
             const requestData = requestResponse.data;
 
             setItem(requestData);
-            setStatus(requestData.status ?? "");
 
             setTechnicianId(
                 requestData.technician_id
@@ -289,21 +368,149 @@ export default function Show({ requestId }) {
         }
     };
 
-    const updateStatus = async () => {
-        if (!status) return;
+    // ดึงเฉพาะข้อความใหม่ทุก 5 วินาที เพื่อให้คุยกันได้โดยไม่ต้องรีเฟรชหน้า
+    useEffect(() => {
+        let stop = false;
+        let lastId = 0;
+
+        const poll = async () => {
+            try {
+                const { data } = await axios.get(
+                    `/api/maintenance/requests/${requestId}/messages`,
+                    { params: lastId ? { after: lastId } : {} },
+                );
+
+                if (stop || !data.length) return;
+
+                lastId = data[data.length - 1].id;
+
+                // ข้อความที่เพิ่งส่งเองอาจถูกเพิ่มไปแล้ว จึงกันไม่ให้ซ้ำ
+                setMessages((current) => {
+                    const known = new Set(current.map((message) => message.id));
+                    const fresh = data.filter((message) => !known.has(message.id));
+
+                    return fresh.length ? [...current, ...fresh] : current;
+                });
+            } catch {
+                // ไม่มีสิทธิ์คุยในงานนี้ หรือเครือข่ายขัดข้อง ปล่อยให้รอบถัดไปลองใหม่
+            }
+        };
+
+        poll();
+        const timer = setInterval(poll, 5000);
+
+        return () => {
+            stop = true;
+            clearInterval(timer);
+        };
+    }, [requestId]);
+
+    const sendMessage = async (event) => {
+        event.preventDefault();
+
+        const body = draft.trim();
+
+        if (!body || sending) return;
+
+        setSending(true);
+
+        try {
+            const { data } = await axios.post(
+                `/api/maintenance/requests/${requestId}/messages`,
+                { body },
+            );
+
+            setMessages((current) =>
+                current.some((message) => message.id === data.id)
+                    ? current
+                    : [...current, data],
+            );
+            setDraft("");
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message ?? t.chatError);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const uploadFiles = async (event) => {
+        const files = [...event.target.files];
+        event.target.value = "";
+
+        if (!files.length) {
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            // อัปโหลดทีละไฟล์ เพื่อให้เห็นความคืบหน้าและหยุดทันทีเมื่อไฟล์ใดไม่ผ่าน
+            for (const file of files) {
+                const body = new FormData();
+                body.append("file", file);
+
+                await axios.post(
+                    `/api/maintenance/requests/${requestId}/attachments`,
+                    body,
+                    {
+                        onUploadProgress: (e) =>
+                            setProgress(Math.round((e.loaded / (e.total || file.size)) * 100)),
+                    },
+                );
+            }
+
+            await loadData();
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message ?? t.uploadError);
+        } finally {
+            setUploading(false);
+            setProgress(0);
+        }
+    };
+
+    const removeAttachment = async (id) => {
+        if (!confirm(t.deleteFileConfirm)) {
+            return;
+        }
+
+        try {
+            await axios.delete(`/api/maintenance/attachments/${id}`);
+            await loadData();
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message ?? t.uploadError);
+        }
+    };
+
+    const rejectWork = async () => {
+        const note = prompt(t.rejectPrompt);
+
+        if (!note || !note.trim()) {
+            return;
+        }
+
+        await changeStatus("in_progress", null, note.trim());
+    };
+
+    const changeStatus = async (next, confirmText, note) => {
+        if (confirmText && !confirm(confirmText)) {
+            return;
+        }
 
         setSavingStatus(true);
 
         try {
             await axios.put(`/api/maintenance/requests/${requestId}`, {
-                status,
+                status: next,
+                ...(note ? { note } : {}),
             });
 
             await loadData();
-            alert(t.statusSuccess);
         } catch (error) {
             console.error(error);
-            alert(t.statusError);
+            alert(error.response?.data?.message ?? t.statusError);
         } finally {
             setSavingStatus(false);
         }
@@ -326,6 +533,7 @@ export default function Show({ requestId }) {
                 repair_detail: repairForm.repair_detail || null,
                 labor_cost: Number(repairForm.labor_cost || 0),
                 parts_cost: Number(repairForm.parts_cost || 0),
+                status: repairForm.status,
             });
 
             setRepairForm({
@@ -333,6 +541,7 @@ export default function Show({ requestId }) {
                 repair_detail: "",
                 labor_cost: "",
                 parts_cost: "",
+                status: "in_progress",
             });
 
             await loadData();
@@ -398,6 +607,7 @@ export default function Show({ requestId }) {
         assigned: t.assigned,
         in_progress: t.inProgress,
         waiting_parts: t.waitingParts,
+        awaiting_confirmation: t.awaitingConfirmation,
         completed: t.completed,
         cancelled: t.cancelled,
     };
@@ -411,6 +621,9 @@ export default function Show({ requestId }) {
 
         waiting_parts:
             "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200",
+
+        awaiting_confirmation:
+            "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200",
 
         completed:
             "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
@@ -511,6 +724,24 @@ export default function Show({ requestId }) {
     const canEditRequest =
         isAdmin || (item.user_id === user.id && item.status === "pending");
     const canUpdateStatus = isAdmin || item.technician_id === user.id;
+    const openJob = !["completed", "cancelled"].includes(item.status);
+    // ผู้แจ้ง ช่างที่รับงาน และ Admin คุยกันได้
+    const canChat =
+        isAdmin || item.user_id === user.id || item.technician_id === user.id;
+    const files = item.attachments ?? [];
+    // ผู้แจ้ง ช่างที่รับงาน และ Admin แนบหลักฐานได้จนกว่างานจะปิด
+    const canAttach =
+        openJob &&
+        files.length < 10 &&
+        (isAdmin || item.user_id === user.id || item.technician_id === user.id);
+    // ผู้แจ้งและ Admin เป็นผู้ยืนยันว่างานเสร็จจริง
+    const canReview =
+        (isAdmin || item.user_id === user.id) &&
+        item.status === "awaiting_confirmation";
+    // ผู้แจ้งและ Admin ยกเลิกงานที่ยังไม่ปิดได้
+    const canCancel =
+        (isAdmin || item.user_id === user.id) &&
+        !["completed", "cancelled"].includes(item.status);
 
     return (
         <MaintenanceLayout title={t.layoutTitle}>
@@ -573,8 +804,8 @@ export default function Show({ requestId }) {
                             </span>
                         </div>
 
-                        {canEditRequest && (
                         <div className="flex flex-wrap gap-2">
+                            {canEditRequest && (
                             <Link
                                 href={`/maintenance/requests/${requestId}/edit`}
                                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-600 no-underline transition hover:bg-blue-50"
@@ -582,7 +813,9 @@ export default function Show({ requestId }) {
                                 <i className="bi bi-pencil"></i>
                                 {t.editRequest}
                             </Link>
+                            )}
 
+                            {canEditRequest && (
                             <button
                                 type="button"
                                 onClick={deleteRequest}
@@ -601,8 +834,44 @@ export default function Show({ requestId }) {
                                     </>
                                 )}
                             </button>
+                            )}
+
+                            {canReview && (
+                                <>
+                                    <button
+                                        type="button"
+                                        disabled={savingStatus}
+                                        onClick={() => changeStatus("completed", t.confirmDoneConfirm)}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <i className="bi bi-patch-check"></i>
+                                        {savingStatus ? t.saving : t.confirmDone}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        disabled={savingStatus}
+                                        onClick={rejectWork}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <i className="bi bi-arrow-counterclockwise"></i>
+                                        {t.rejectWork}
+                                    </button>
+                                </>
+                            )}
+
+                            {canCancel && (
+                                <button
+                                    type="button"
+                                    onClick={() => changeStatus("cancelled", t.cancelJobConfirm)}
+                                    disabled={savingStatus}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <i className="bi bi-x-circle"></i>
+                                    {savingStatus ? t.saving : t.cancelJob}
+                                </button>
+                            )}
                         </div>
-                        )}
                     </div>
                 </section>
 
@@ -665,6 +934,33 @@ export default function Show({ requestId }) {
 
                                             {item.location}
                                         </div>
+
+                                        {item.location_note && (
+                                            <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">
+                                                <span className="font-semibold text-slate-500">{t.locationNote}: </span>
+                                                {item.location_note}
+                                            </div>
+                                        )}
+
+                                        {item.latitude && item.longitude && (
+                                            <div className="mt-3">
+                                                <LocationMap
+                                                    latitude={item.latitude}
+                                                    longitude={item.longitude}
+                                                    height="h-40"
+                                                />
+
+                                                <a
+                                                    href={`https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 no-underline hover:underline"
+                                                >
+                                                    <i className="bi bi-signpost-2"></i>
+                                                    {t.directions}
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
@@ -880,6 +1176,28 @@ export default function Show({ requestId }) {
                                             </div>
                                         </div>
 
+                                        <div className="space-y-2 rounded-xl bg-white p-3">
+                                            {[
+                                                ["waiting_parts", "logWaitingParts"],
+                                                ["awaiting_confirmation", "logCompleted"],
+                                            ].map(([value, label]) => (
+                                                <label key={value} className="flex cursor-pointer items-center gap-3 text-sm text-slate-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                        checked={repairForm.status === value}
+                                                        onChange={(e) =>
+                                                            setRepairForm({
+                                                                ...repairForm,
+                                                                status: e.target.checked ? value : "in_progress",
+                                                            })
+                                                        }
+                                                    />
+                                                    {t[label]}
+                                                </label>
+                                            ))}
+                                        </div>
+
                                         <button
                                             type="submit"
                                             disabled={repairSaving}
@@ -899,6 +1217,202 @@ export default function Show({ requestId }) {
                                         </button>
                                     </div>
                                 </form>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* CHAT */}
+                        {canChat && (
+                        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div className="border-b border-slate-100 px-6 py-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                        <i className="bi bi-chat-dots"></i>
+                                    </div>
+
+                                    <div>
+                                        <h3 className="font-bold text-slate-900">
+                                            {item.user_id === user.id ? t.chat : t.chatWithCustomer}
+                                        </h3>
+
+                                        <p className="mt-0.5 text-sm text-slate-500">
+                                            {t.chatDesc}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6">
+                                <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+                                    {messages.length === 0 ? (
+                                        <div className="rounded-xl bg-slate-50 px-5 py-8 text-center">
+                                            <i className="bi bi-chat-square-text text-3xl text-slate-300"></i>
+
+                                            <div className="mt-3 font-semibold text-slate-600">
+                                                {t.chatEmpty}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        messages.map((message) => {
+                                            const mine = message.user_id === user.id;
+
+                                            return (
+                                                <div
+                                                    key={message.id}
+                                                    className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                                                >
+                                                    <div
+                                                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                                                            mine
+                                                                ? "bg-blue-600 text-white"
+                                                                : "bg-slate-100 text-slate-800"
+                                                        }`}
+                                                    >
+                                                        {!mine && (
+                                                            <div className="text-xs font-bold text-slate-500">
+                                                                {message.sender?.name ?? "-"}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="whitespace-pre-wrap break-words text-sm leading-6">
+                                                            {message.body}
+                                                        </div>
+
+                                                        <div className={`mt-1 text-[11px] ${mine ? "text-blue-100" : "text-slate-400"}`}>
+                                                            {formatDateTime(message.created_at)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                <form onSubmit={sendMessage} className="mt-4 flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={draft}
+                                        maxLength={2000}
+                                        onChange={(e) => setDraft(e.target.value)}
+                                        placeholder={t.chatPlaceholder}
+                                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                                    />
+
+                                    <button
+                                        type="submit"
+                                        disabled={sending || !draft.trim()}
+                                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <i className="bi bi-send"></i>
+                                        {t.chatSend}
+                                    </button>
+                                </form>
+                            </div>
+                        </section>
+                        )}
+
+                        {/* PHOTOS AND VIDEO */}
+                        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div className="border-b border-slate-100 px-6 py-5">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+                                            <i className="bi bi-images"></i>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="font-bold text-slate-900">
+                                                {t.media}
+                                            </h3>
+
+                                            <p className="mt-0.5 text-sm text-slate-500">
+                                                {t.mediaDesc}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                        {files.length}/10
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="p-6">
+                                {files.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        {files.map((file) => (
+                                            <figure key={file.id} className="overflow-hidden rounded-xl border border-slate-200">
+                                                {file.mime_type?.startsWith("video/") ? (
+                                                    <video
+                                                        src={`/api/maintenance/attachments/${file.id}`}
+                                                        controls
+                                                        preload="metadata"
+                                                        className="h-48 w-full bg-slate-900 object-contain"
+                                                    />
+                                                ) : (
+                                                    <a
+                                                        href={`/api/maintenance/attachments/${file.id}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <img
+                                                            src={`/api/maintenance/attachments/${file.id}`}
+                                                            alt={file.original_name}
+                                                            className="h-48 w-full bg-slate-50 object-cover"
+                                                        />
+                                                    </a>
+                                                )}
+
+                                                <figcaption className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-500">
+                                                    <span className="min-w-0 truncate">
+                                                        {file.uploader?.name ?? "-"} · {formatDateTime(file.created_at)}
+                                                    </span>
+
+                                                    {openJob && (isAdmin || file.user_id === user.id) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeAttachment(file.id)}
+                                                            aria-label={t.deleteFile}
+                                                            className="shrink-0 text-rose-600 transition hover:text-rose-700"
+                                                        >
+                                                            <i className="bi bi-trash"></i>
+                                                        </button>
+                                                    )}
+                                                </figcaption>
+                                            </figure>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-xl bg-slate-50 px-5 py-8 text-center">
+                                        <i className="bi bi-image text-3xl text-slate-300"></i>
+
+                                        <div className="mt-3 font-semibold text-slate-600">
+                                            {t.noMedia}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {canAttach && (
+                                    <label className={`mt-5 flex cursor-pointer flex-col items-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-6 text-center ${uploading ? "cursor-wait opacity-60" : ""}`}>
+                                        <i className="bi bi-cloud-arrow-up text-2xl text-slate-400"></i>
+
+                                        <span className="font-semibold text-slate-700">
+                                            {uploading ? `${t.uploadingMedia} ${progress}%` : t.addMedia}
+                                        </span>
+
+                                        <span className="text-xs text-slate-500">
+                                            {t.mediaRules}
+                                        </span>
+
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            multiple
+                                            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                                            disabled={uploading}
+                                            onChange={uploadFiles}
+                                        />
+                                    </label>
                                 )}
                             </div>
                         </section>
@@ -959,8 +1473,7 @@ export default function Show({ requestId }) {
                         </section>
                         )}
 
-                        {/* STATUS */}
-                        {canUpdateStatus && (
+                        {/* STATUS: เปลี่ยนอัตโนมัติตามงานที่เกิดขึ้นจริง */}
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -978,40 +1491,73 @@ export default function Show({ requestId }) {
                                 </div>
                             </div>
 
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                                className="mt-5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                            >
-                                <option value="pending">{t.pending}</option>
+                            <ol className="mt-5 space-y-4">
+                                {[
+                                    ["stepReported", item.created_at, true],
+                                    ["stepAssigned", item.assigned_at, !!item.technician_id],
+                                    ["stepInProgress", item.started_at, !!item.started_at],
+                                    ["stepHandedOver", item.handed_over_at, !!item.handed_over_at || item.status === "completed"],
+                                    ["stepCompleted", item.confirmed_at ?? item.completed_at, item.status === "completed"],
+                                ].map(([key, at, done], index, steps) => (
+                                    <li key={key} className="flex gap-3">
+                                        <div className="flex flex-col items-center">
+                                            <span
+                                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                                    done
+                                                        ? "bg-emerald-500 text-white"
+                                                        : "bg-slate-100 text-slate-400"
+                                                }`}
+                                            >
+                                                {done ? <i className="bi bi-check-lg"></i> : index + 1}
+                                            </span>
 
-                                <option value="assigned">{t.assigned}</option>
+                                            {index < steps.length - 1 && (
+                                                <span className={`mt-1 w-0.5 flex-1 ${done ? "bg-emerald-200" : "bg-slate-100"}`} />
+                                            )}
+                                        </div>
 
-                                <option value="in_progress">
-                                    {t.inProgress}
-                                </option>
+                                        <div className="pb-1">
+                                            <div className={`font-semibold ${done ? "text-slate-900" : "text-slate-400"}`}>
+                                                {t[key]}
+                                            </div>
 
-                                <option value="waiting_parts">
-                                    {t.waitingParts}
-                                </option>
+                                            {done && at && (
+                                                <div className="mt-0.5 text-xs text-slate-400">
+                                                    {formatDateTime(at)}
+                                                </div>
+                                            )}
 
-                                <option value="completed">{t.completed}</option>
+                                            {key === "stepInProgress" && item.status === "waiting_parts" && (
+                                                <span className="mt-1 inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">
+                                                    {t.waitingParts}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ol>
 
-                                <option value="cancelled">{t.cancelled}</option>
-                            </select>
+                            {item.status === "cancelled" ? (
+                                <div className="mt-5 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                                    <i className="bi bi-x-circle mr-2"></i>
+                                    {t.jobCancelled}
+                                </div>
+                            ) : item.status === "completed" && item.confirmed_by ? (
+                                <p className="mt-5 text-xs leading-5 text-slate-500">
+                                    {t.confirmedBy}{" "}
+                                    <span className="font-semibold text-slate-700">
+                                        {item.confirmed_by === item.user_id
+                                            ? (item.requester?.name ?? "-")
+                                            : t.admin}
+                                    </span>
+                                </p>
+                            ) : (
+                                <p className="mt-5 text-xs leading-5 text-slate-500">
+                                    {t.statusAuto}
+                                </p>
+                            )}
 
-                            <button
-                                type="button"
-                                onClick={updateStatus}
-                                disabled={savingStatus}
-                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                            >
-                                <i className="bi bi-check2-circle"></i>
-
-                                {savingStatus ? t.saving : t.saveStatus}
-                            </button>
                         </section>
-                        )}
 
                         {/* COST */}
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1173,6 +1719,10 @@ export default function Show({ requestId }) {
                                     </Link>
                                     )}
                                 </div>
+                            ) : isStaff && item.status !== "completed" ? (
+                                <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-500">
+                                    {t.invoiceAfterConfirm}
+                                </p>
                             ) : isStaff ? (
                                 <button
                                     type="button"

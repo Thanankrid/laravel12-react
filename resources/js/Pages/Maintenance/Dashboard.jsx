@@ -57,6 +57,7 @@ export default function Dashboard() {
             assignedStatus: 'มอบหมายแล้ว',
             inProgressStatus: 'กำลังซ่อม',
             waitingStatus: 'รออะไหล่',
+            awaitingStatus: 'รอผู้แจ้งยืนยัน',
             completedStatus: 'เสร็จสิ้น',
             cancelledStatus: 'ยกเลิก',
         },
@@ -109,6 +110,7 @@ export default function Dashboard() {
             assignedStatus: 'Assigned',
             inProgressStatus: 'In Progress',
             waitingStatus: 'Waiting for Parts',
+            awaitingStatus: 'Awaiting Confirmation',
             completedStatus: 'Completed',
             cancelledStatus: 'Cancelled',
         },
@@ -151,7 +153,8 @@ export default function Dashboard() {
                 (item) =>
                     item.status === 'assigned' ||
                     item.status === 'in_progress' ||
-                    item.status === 'waiting_parts'
+                    item.status === 'waiting_parts' ||
+                    item.status === 'awaiting_confirmation'
             ).length,
 
             completed: requests.filter(
@@ -168,6 +171,7 @@ export default function Dashboard() {
         assigned: t.assignedStatus,
         in_progress: t.inProgressStatus,
         waiting_parts: t.waitingStatus,
+        awaiting_confirmation: t.awaitingStatus,
         completed: t.completedStatus,
         cancelled: t.cancelledStatus,
     };
@@ -184,6 +188,9 @@ export default function Dashboard() {
 
         waiting_parts:
             'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200',
+
+        awaiting_confirmation:
+            'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200',
 
         completed:
             'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',

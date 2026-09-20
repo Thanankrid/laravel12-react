@@ -49,8 +49,9 @@ class RepairLogController extends Controller
             'parts_cost' =>
                 'nullable|numeric|min:0',
 
+            // ช่างเลือกได้จากฟอร์มบันทึกการซ่อม ค่าเริ่มต้นคือกำลังซ่อม
             'status' =>
-                'nullable|in:assigned,in_progress,waiting_parts,completed',
+                'nullable|in:in_progress,waiting_parts,awaiting_confirmation',
         ]);
 
         return DB::transaction(function () use (
@@ -82,34 +83,20 @@ class RepairLogController extends Controller
                 'parts_cost' =>
                     $validated['parts_cost'] ?? 0,
 
-                'completed_at' =>
-                    ($validated['status'] ?? null) === 'completed'
-                        ? now()
-                        : null,
+                'completed_at' => null,
             ]);
 
 
-            if (!empty($validated['status'])) {
-                $updateData = [
-                    'status' => $validated['status'],
-                ];
+            // บันทึกการซ่อมหมายถึงช่างลงมือทำงานแล้ว จึงเปลี่ยนสถานะให้อัตโนมัติ
+            if (!in_array($maintenanceRequest->status, ['completed', 'cancelled'], true)) {
+                $status = $validated['status'] ?? 'in_progress';
 
-                if (
-                    $validated['status'] === 'in_progress' &&
-                    !$maintenanceRequest->started_at
-                ) {
-                    $updateData['started_at'] = now();
-                }
-
-                if (
-                    $validated['status'] === 'completed'
-                ) {
-                    $updateData['completed_at'] = now();
-                }
-
-                $maintenanceRequest->update(
-                    $updateData
-                );
+                $maintenanceRequest->update([
+                    'status' => $status,
+                    'started_at' => $maintenanceRequest->started_at ?? now(),
+                    // ช่างส่งงานแล้ว รอผู้แจ้งยืนยันว่าซ่อมเรียบร้อยจริง
+                    'handed_over_at' => $status === 'awaiting_confirmation' ? now() : null,
+                ]);
             }
 
 

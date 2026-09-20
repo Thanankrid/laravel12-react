@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Maintenance;
 
 use App\Http\Controllers\Controller;
+use App\Models\MaintenanceRepairLog;
 use App\Models\MaintenanceRequest;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -46,6 +47,10 @@ class MaintenanceRequestController extends Controller
             'title' => 'required|string|max:255',
             'equipment_type' => 'required|string|max:100',
             'location' => 'required|string|max:255',
+            // พิกัดจากแผนที่และรายละเอียดสถานที่ (ไม่บังคับ)
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'location_note' => 'nullable|string|max:255',
             'description' => 'required|string',
             'priority' => 'required|in:low,medium,high,urgent',
         ]);
@@ -82,6 +87,7 @@ class MaintenanceRequestController extends Controller
             'requester',
             'technician',
             'repairLogs.technician',
+            'attachments.uploader:id,name',
             'invoice.items',
         ]);
 
@@ -103,22 +109,45 @@ class MaintenanceRequestController extends Controller
             );
         }
 
-        // เปลี่ยนสถานะได้เฉพาะช่างที่รับงานนี้หรือ Admin
         if ($request->has('status')) {
-            abort_unless(
-                $user->role === 'admin' || $maintenanceRequest->technician_id === $user->id,
-                403,
-                'ไม่มีสิทธิ์เปลี่ยนสถานะงานนี้'
+            $next = $request->input('status');
+            $isOwner = $maintenanceRequest->user_id === $user->id;
+            $isStaff = $user->role === 'admin' || $maintenanceRequest->technician_id === $user->id;
+            $isReviewer = $isOwner || $user->role === 'admin';
+
+            abort_if(
+                in_array($maintenanceRequest->status, ['completed', 'cancelled'], true),
+                409,
+                'งานนี้ปิดแล้ว ไม่สามารถเปลี่ยนสถานะได้'
             );
+
+            if ($next === 'completed') {
+                // ปิดงานได้เฉพาะผู้แจ้ง (หรือ Admin) หลังช่างส่งงานแล้ว
+                abort_unless($isReviewer, 403, 'เฉพาะผู้แจ้งหรือผู้ดูแลระบบที่ยืนยันงานได้');
+                abort_unless($maintenanceRequest->status === 'awaiting_confirmation', 409, 'ต้องให้ช่างส่งงานก่อนจึงยืนยันได้');
+            } elseif ($next === 'in_progress' && $maintenanceRequest->status === 'awaiting_confirmation') {
+                // ผู้แจ้งตีงานกลับ ต้องบอกเหตุผลให้ช่างแก้ต่อ
+                abort_unless($isReviewer, 403, 'เฉพาะผู้แจ้งหรือผู้ดูแลระบบที่ตีงานกลับได้');
+                $request->validate(['note' => 'required|string|max:1000']);
+            } elseif ($next === 'cancelled') {
+                abort_unless($isStaff || $isOwner, 403, 'ไม่มีสิทธิ์ยกเลิกงานนี้');
+            } else {
+                abort_unless($isStaff, 403, 'ไม่มีสิทธิ์เปลี่ยนสถานะงานนี้');
+            }
         }
 
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'equipment_type' => 'sometimes|required|string|max:100',
             'location' => 'sometimes|required|string|max:255',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'location_note' => 'nullable|string|max:255',
             'description' => 'sometimes|required|string',
             'priority' => 'sometimes|required|in:low,medium,high,urgent',
-            'status' => 'sometimes|required|in:pending,assigned,in_progress,waiting_parts,completed,cancelled',
+            // สถานะอื่นมาจากการมอบหมายช่างและบันทึกการซ่อม
+            'status' => 'sometimes|required|in:in_progress,waiting_parts,awaiting_confirmation,completed,cancelled',
+            'note' => 'nullable|string|max:1000',
         ]);
 
         $maintenanceRequest->update($validated);
@@ -144,8 +173,23 @@ class MaintenanceRequestController extends Controller
             isset($validated['status']) &&
             $validated['status'] === 'completed'
         ) {
+            // หลักฐานว่าใครเป็นผู้ยืนยันและยืนยันเมื่อใด
             $maintenanceRequest->update([
-                'completed_at' => now()
+                'completed_at' => now(),
+                'confirmed_at' => now(),
+                'confirmed_by' => $request->user()->id,
+            ]);
+        }
+
+        // เก็บเหตุผลที่ผู้แจ้งตีงานกลับไว้ในประวัติการซ่อม
+        if (($validated['status'] ?? null) === 'in_progress' && $request->filled('note')) {
+            MaintenanceRepairLog::create([
+                'maintenance_request_id' => $maintenanceRequest->id,
+                'technician_id' => $maintenanceRequest->technician_id ?? $request->user()->id,
+                'action' => 'ผู้แจ้งแจ้งว่ายังไม่เรียบร้อย',
+                'repair_detail' => $request->input('note'),
+                'labor_cost' => 0,
+                'parts_cost' => 0,
             ]);
         }
 

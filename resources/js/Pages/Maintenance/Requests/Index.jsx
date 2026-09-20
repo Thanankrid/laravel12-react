@@ -59,6 +59,7 @@ export default function Index() {
             assigned: 'มอบหมายแล้ว',
             inProgress: 'กำลังซ่อม',
             waitingParts: 'รออะไหล่',
+            awaitingConfirmation: 'รอผู้แจ้งยืนยัน',
             completed: 'เสร็จสิ้น',
             cancelled: 'ยกเลิก',
 
@@ -113,6 +114,7 @@ export default function Index() {
             assigned: 'Assigned',
             inProgress: 'In Progress',
             waitingParts: 'Waiting for Parts',
+            awaitingConfirmation: 'Awaiting Confirmation',
             completed: 'Completed',
             cancelled: 'Cancelled',
 
@@ -181,6 +183,7 @@ export default function Index() {
         assigned: t.assigned,
         in_progress: t.inProgress,
         waiting_parts: t.waitingParts,
+        awaiting_confirmation: t.awaitingConfirmation,
         completed: t.completed,
         cancelled: t.cancelled,
     };
@@ -204,6 +207,9 @@ export default function Index() {
 
         waiting_parts:
             'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200',
+
+        awaiting_confirmation:
+            'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200',
 
         completed:
             'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
@@ -358,6 +364,10 @@ export default function Index() {
 
                                 <option value="waiting_parts">
                                     {t.waitingParts}
+                                </option>
+
+                                <option value="awaiting_confirmation">
+                                    {t.awaitingConfirmation}
                                 </option>
 
                                 <option value="completed">

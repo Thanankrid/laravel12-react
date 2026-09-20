@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import MaintenanceLayout from '@/Layouts/MaintenanceLayout';
+import LocationPicker from '@/Components/LocationPicker';
 import useFixFlowSettings from '@/hooks/useFixFlowSettings';
 
 export default function Create() {
@@ -10,12 +11,16 @@ export default function Create() {
         title: '',
         equipment_type: '',
         location: '',
+        latitude: null,
+        longitude: null,
+        location_note: '',
         description: '',
         priority: 'medium',
     });
 
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
+    const [files, setFiles] = useState([]);
 
     const text = {
         th: {
@@ -75,6 +80,22 @@ export default function Create() {
             urgent: 'เร่งด่วน',
             urgentDescription:
                 'ต้องดำเนินการโดยเร็ว',
+
+            mapTitle: 'ปักหมุดบนแผนที่ (ไม่บังคับ)',
+            locationNote: 'รายละเอียดสถานที่เพิ่มเติม',
+            locationNotePlaceholder:
+                'เช่น ชั้น 3 ห้อง 7502 ตรงข้ามลิฟต์ หรือจุดสังเกตอื่น ๆ',
+            media: 'รูปภาพและวิดีโอ',
+            mediaDescription:
+                'แนบรูปหรือคลิปของปัญหา เพื่อให้ช่างเห็นหน้างานก่อนเข้าซ่อม',
+            addMedia: 'เลือกรูปภาพหรือวิดีโอ',
+            mediaRules:
+                'JPG, PNG, WebP, MP4, WebM หรือ MOV · ไม่เกิน 25 MB ต่อไฟล์ · สูงสุด 10 ไฟล์',
+            mediaRejected:
+                'บางไฟล์ใช้ไม่ได้ (รองรับเฉพาะรูปภาพและวิดีโอ ไม่เกิน 25 MB ต่อไฟล์ สูงสุด 10 ไฟล์)',
+            mediaUploadFailed:
+                'บันทึกคำร้องแล้ว แต่แนบไฟล์บางไฟล์ไม่สำเร็จ ลองแนบอีกครั้งในหน้ารายละเอียด',
+            removeFile: 'นำออก',
 
             cancel: 'ยกเลิก',
             submit: 'ส่งคำขอแจ้งซ่อม',
@@ -143,6 +164,22 @@ export default function Create() {
             urgentDescription:
                 'Requires immediate attention',
 
+            mapTitle: 'Drop a pin on the map (optional)',
+            locationNote: 'Extra location details',
+            locationNotePlaceholder:
+                'e.g. 3rd floor, room 7502, opposite the lift, or any landmark',
+            media: 'Photos and video',
+            mediaDescription:
+                'Attach photos or a clip of the problem so the technician knows what to expect.',
+            addMedia: 'Choose photos or video',
+            mediaRules:
+                'JPG, PNG, WebP, MP4, WebM or MOV - up to 25 MB each - 10 files',
+            mediaRejected:
+                'Some files were skipped (images and video only, up to 25 MB each, 10 files).',
+            mediaUploadFailed:
+                'The request was saved, but some files could not be attached. Try again from the request page.',
+            removeFile: 'Remove',
+
             cancel: 'Cancel',
             submit: 'Submit Request',
             saving: 'Submitting...',
@@ -169,6 +206,32 @@ export default function Create() {
         }
     };
 
+    const mediaTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+    ];
+
+    const pickFiles = (event) => {
+        const chosen = [...event.target.files];
+        event.target.value = '';
+
+        const valid = chosen.filter(
+            (file) =>
+                mediaTypes.includes(file.type) &&
+                file.size <= 25 * 1024 * 1024
+        );
+
+        if (valid.length < chosen.length || files.length + valid.length > 10) {
+            alert(t.mediaRejected);
+        }
+
+        setFiles([...files, ...valid].slice(0, 10));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -182,6 +245,24 @@ export default function Create() {
             );
 
             const newRequest = response.data?.data;
+
+            // ไฟล์แนบต้องมีคำร้องก่อน จึงอัปโหลดหลังบันทึกคำร้องสำเร็จ
+            if (newRequest?.id && files.length) {
+                try {
+                    for (const file of files) {
+                        const body = new FormData();
+                        body.append('file', file);
+
+                        await axios.post(
+                            `/api/maintenance/requests/${newRequest.id}/attachments`,
+                            body
+                        );
+                    }
+                } catch (uploadError) {
+                    console.error(uploadError);
+                    alert(t.mediaUploadFailed);
+                }
+            }
 
             alert(t.success);
 
@@ -544,6 +625,42 @@ export default function Create() {
 
                             </div>
 
+                                <div className="mt-4">
+                                    <label className="mb-2 block text-sm font-bold text-slate-700">
+                                        {t.locationNote}
+                                    </label>
+
+                                    <textarea
+                                        rows="2"
+                                        value={form.location_note}
+                                        maxLength={255}
+                                        onChange={(e) => handleChange('location_note', e.target.value)}
+                                        placeholder={t.locationNotePlaceholder}
+                                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                                    />
+                                </div>
+
+                                <div className="mt-4">
+                                    <label className="mb-2 block text-sm font-bold text-slate-700">
+                                        {t.mapTitle}
+                                    </label>
+
+                                    <LocationPicker
+                                        language={language}
+                                        latitude={form.latitude}
+                                        longitude={form.longitude}
+                                        onPick={({ latitude, longitude, address }) =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                latitude,
+                                                longitude,
+                                                // เติมที่อยู่ให้เมื่อผู้ใช้ยังไม่ได้พิมพ์เอง
+                                                location: current.location?.trim() ? current.location : (address ?? ''),
+                                            }))
+                                        }
+                                    />
+                                </div>
+
 
                             {/* DESCRIPTION */}
                             <div>
@@ -674,6 +791,93 @@ export default function Create() {
                                         </button>
                                     );
                                 }
+                            )}
+
+                        </div>
+
+                    </section>
+
+
+                    {/* PHOTOS AND VIDEO */}
+                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                        <div className="border-b border-slate-100 px-6 py-5">
+
+                            <div className="flex items-center gap-3">
+
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+                                    <i className="bi bi-images"></i>
+                                </div>
+
+                                <div>
+                                    <h2 className="font-bold text-slate-900">
+                                        {t.media}
+                                    </h2>
+
+                                    <p className="mt-0.5 text-sm text-slate-500">
+                                        {t.mediaDescription}
+                                    </p>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div className="p-6">
+
+                            {files.length > 0 && (
+                                <div className="mb-4 space-y-2">
+                                    {files.map((file, index) => (
+                                        <div
+                                            key={`${file.name}-${index}`}
+                                            className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2"
+                                        >
+                                            <i className={`bi ${file.type.startsWith('video/') ? 'bi-camera-video' : 'bi-image'} text-slate-400`}></i>
+
+                                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700">
+                                                {file.name}
+                                            </span>
+
+                                            <span className="shrink-0 text-xs text-slate-400">
+                                                {Math.ceil(file.size / 1024)} KB
+                                            </span>
+
+                                            <button
+                                                type="button"
+                                                aria-label={t.removeFile}
+                                                onClick={() =>
+                                                    setFiles(files.filter((_, i) => i !== index))
+                                                }
+                                                className="shrink-0 text-rose-600 transition hover:text-rose-700"
+                                            >
+                                                <i className="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {files.length < 10 && (
+                                <label className="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-6 text-center">
+                                    <i className="bi bi-cloud-arrow-up text-2xl text-slate-400"></i>
+
+                                    <span className="font-semibold text-slate-700">
+                                        {t.addMedia}
+                                    </span>
+
+                                    <span className="text-xs text-slate-500">
+                                        {t.mediaRules}
+                                    </span>
+
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        multiple
+                                        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                                        disabled={saving}
+                                        onChange={pickFiles}
+                                    />
+                                </label>
                             )}
 
                         </div>

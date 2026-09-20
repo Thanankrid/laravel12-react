@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Api\Maintenance\AttachmentController;
 use App\Http\Controllers\Api\Maintenance\MaintenanceRequestController;
+use App\Http\Controllers\Api\Maintenance\MessageController;
 use App\Http\Controllers\Api\Maintenance\TechnicianController;
 use App\Http\Controllers\Api\Maintenance\RepairLogController;
 use App\Http\Controllers\Api\Maintenance\InvoiceController;
@@ -67,6 +69,15 @@ Route::prefix('maintenance')
             'requests' => 'maintenanceRequest'
         ]);
 
+
+        // การสนทนาระหว่างผู้แจ้งกับช่าง (ตรวจสิทธิ์ใน Controller)
+        Route::get('requests/{maintenanceRequest}/messages', [MessageController::class, 'index']);
+        Route::post('requests/{maintenanceRequest}/messages', [MessageController::class, 'store'])->middleware('throttle:60,1');
+
+        // รูปภาพและวิดีโอประกอบงานซ่อม (ตรวจสิทธิ์ใน Controller)
+        Route::post('requests/{maintenanceRequest}/attachments', [AttachmentController::class, 'store']);
+        Route::get('attachments/{attachment}', [AttachmentController::class, 'show']);
+        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy']);
 
         // รายชื่อช่าง
         Route::get(

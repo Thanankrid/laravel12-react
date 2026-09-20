@@ -41,6 +41,13 @@ class InvoiceController extends Controller
             $validated['maintenance_request_id']
         );
 
+        // ออกใบแจ้งหนี้ได้เมื่อผู้แจ้งยืนยันว่างานเสร็จแล้วเท่านั้น
+        abort_unless(
+            $maintenanceRequest->status === 'completed',
+            409,
+            'ต้องให้ผู้แจ้งยืนยันว่างานเสร็จก่อนจึงออกใบแจ้งหนี้ได้'
+        );
+
         // ป้องกันสร้าง Invoice ซ้ำ
         $existingInvoice = MaintenanceInvoice::where(
             'maintenance_request_id',

@@ -20,16 +20,42 @@ class MaintenanceRequest extends Model
         'description',
         'priority',
         'status',
+        'location_note',
+        'latitude',
+        'longitude',
+        'handed_over_at',
+        'confirmed_at',
+        'confirmed_by',
         'assigned_at',
         'started_at',
         'completed_at',
     ];
 
     protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
         'assigned_at' => 'datetime',
         'started_at' => 'datetime',
+        'handed_over_at' => 'datetime',
         'completed_at' => 'datetime',
+        'confirmed_at' => 'datetime',
     ];
+
+    public function attachments()
+    {
+        return $this->hasMany(
+            MaintenanceAttachment::class,
+            'maintenance_request_id'
+        )->latest('id');
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(
+            MaintenanceMessage::class,
+            'maintenance_request_id'
+        );
+    }
 
     public function requester()
     {
